@@ -1,31 +1,18 @@
-const { Worker } = require('bullmq')
 const userSchema = require('./model.js')
-const { resultsPublisher } = require('./publisher')
-const consola = require('consola')
+const { Subscriber } = require('./utils/util.subscriber')
+const { setResultsPublisher } = require('./publisher')
+
+const createSubscriber = new Subscriber({ serviceName: 'create', listenerName: 'create:speaker' })
+const resultsSubscriber = new Subscriber({ serviceName: 'results', listenerName: 'results:speaker' })
 
 /**
- * @description queueCreatePublisher
+ * @description createSubscriber
  */
 
-const queueCreatePublisher = new Worker(
-	'create service',
-	async (job) => {
-		if (job.name == 'create:service') {
-			queueCreatePublisher.emit('create:service', JSON.stringify({ data: job.data }))
-		}
-	},
-	{ limiter: { duration: 3000, max: 25 } }
-)
-
-queueCreatePublisher.on('completed', (job) => consola.success(`job create completed ${job.id}`))
-queueCreatePublisher.on('waiting', (job) => consola.info(`job create waiting ${job.id}`))
-queueCreatePublisher.on('active', (job) => consola.info(`job create active ${job.id}`))
-queueCreatePublisher.on('failed', (job) => consola.error(`job create failed ${job.id}`))
-
-exports.createSubscriber = () => {
-	return new Promise((resolve, reject) => {
-		queueCreatePublisher.once('create:service', async (data) => {
-			const response = await insertOne(JSON.parse(data).data)
+exports.getRegisterSubscriber = () => {
+	return new Promise((resolve, _) => {
+		createSubscriber.listener().then(async (res) => {
+			const response = await insertOne(res)
 			resolve(response)
 		})
 	})
@@ -37,12 +24,13 @@ function insertOne(res) {
 			const checkEmail = await userSchema.findOne({ email: res.email }).lean()
 			if (checkEmail) {
 				resolve({ statusCode: 409, message: 'todo already exist' })
-			}
-			const saveEmail = await userSchema.create({ email: res.email })
-			if (saveEmail) {
-				resolve({ statusCode: 201, message: 'add new todo successfully' })
 			} else {
-				resolve({ statusCode: 400, message: 'add new todo failed' })
+				const saveEmail = await userSchema.create({ email: res.email })
+				if (saveEmail) {
+					resolve({ statusCode: 201, message: 'add new todo successfully' })
+				} else {
+					resolve({ statusCode: 400, message: 'add new todo failed' })
+				}
 			}
 		} catch (err) {
 			reject({ statusCode: 500, message: 'internal server error' })
@@ -51,32 +39,12 @@ function insertOne(res) {
 }
 
 /**
- * @description queueResultsPublisher
+ * @description resultsSubscriber
  */
 
-const queueResultsPublisher = new Worker(
-	'results service',
-	async (job) => {
-		if (job.name == 'results:service') {
-			queueResultsPublisher.emit('results:service', JSON.stringify({ data: job.data }))
-		}
-	},
-	{ limiter: { duration: 3000, max: 25 } }
-)
-
-queueResultsPublisher.on('completed', (job) => consola.success(`job results completed ${job.id}`))
-queueResultsPublisher.on('waiting', (job) => consola.info(`job results waiting ${job.id}`))
-queueResultsPublisher.on('active', (job) => consola.info(`job results active ${job.id}`))
-queueResultsPublisher.on('failed', (job) => consola.error(`job results failed ${job.id}`))
-
-exports.findAllSubscriber = async () => {
+exports.getResultsSubscriber = async () => {
 	await findAll()
-	return new Promise((resolve, reject) => {
-		queueResultsPublisher.once('results:service', (data) => {
-			const response = JSON.parse(data).data
-			resolve(response)
-		})
-	})
+	return resultsSubscriber.listener()
 }
 
 async function findAll() {
@@ -84,11 +52,11 @@ async function findAll() {
 		const findAllEmail = await userSchema.find({}).lean()
 
 		if (findAllEmail.length < 1) {
-			await resultsPublisher({ statusCode: 404, message: 'todo is not exist', data: findAllEmail })
+			await setResultsPublisher({ statusCode: 404, message: 'todo is not exist', data: findAllEmail })
 		} else {
-			await resultsPublisher({ statusCode: 200, message: 'todo already to use', data: findAllEmail })
+			await setResultsPublisher({ statusCode: 200, message: 'todo already to use', data: findAllEmail })
 		}
 	} catch (err) {
-		await resultsPublisher({ statusCode: 500, message: 'internal server error' })
+		await setResultsPublisher({ statusCode: 500, message: 'internal server error' })
 	}
 }
