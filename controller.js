@@ -3,7 +3,7 @@ const { getRegisterSubscriber, getResultsSubscriber } = require('./subscriber.js
 
 exports.controller = {
 	createController: async (req, res) => {
-		await setRegisterPublisher({ fullname: req.body.fullname, emai: req.body.email })
+		await setRegisterPublisher({ fullname: req.body.fullname, email: req.body.email })
 		const data = await getRegisterSubscriber()
 		return res.status(200).json({ ...data })
 	},
