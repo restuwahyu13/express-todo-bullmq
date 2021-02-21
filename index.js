@@ -11,9 +11,7 @@ const app = express()
 mongoose.Promise = global.Promise
 
 mongoose.connect('mongodb://localhost:27017/express', {
-	minPoolSize: 1,
-	maxPoolSize: 20,
-	compression: { compressors: ['zlib'] },
+	poolSize: 10,
 	useUnifiedTopology: true,
 	useNewUrlParser: true,
 	useFindAndModify: false,

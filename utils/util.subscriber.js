@@ -14,6 +14,7 @@ class Subscriber {
 			async (job) => {
 				if (job.name == this._listenerName) {
 					this._queueEvent.emit(this._listenerName, JSON.stringify({ data: job.data }))
+					return job.name
 				}
 			},
 			{ limiter: { duration: 3000, max: 25 } }
