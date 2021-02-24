@@ -1,3 +1,3 @@
 # Express Todo Bullmq
 
-todo app example implementation pub/sub using `bullmq` and `redis`
+todo app example implementation custom pub/sub using `bullmq` and `redis`
